@@ -10,6 +10,7 @@ import os
 import http.client
 from threading  import Thread
 from queue import Queue, Empty
+import datetime
 
 import tkinter as tk
 from tkinter import ttk
@@ -117,11 +118,14 @@ class Launcher(ttk.Notebook):
 
 class Launch_Frame(ttk.Frame):
 
+
     class Minecraft_Instaince(ttk.Frame):
         
         def __init__(self, cmd, options, logWindow, parent=None):
             self.root = tk.Tk() if parent is None else parent
             super().__init__(self.root, padding="3 3 3 3")
+            if parent is None:
+                self.root.protocol("WM_DELETE_WINDOW", self.on_press_close)
             if parent is None and not logWindow:
                 self.root.overrideredirect(1)
                 self.root.state('withdrawn')
@@ -132,9 +136,12 @@ class Launch_Frame(ttk.Frame):
             self.root.columnconfigure(0, weight=1)
             self.root.rowconfigure(0, weight=1)
 
+            self.start_time = datetime.datetime.now()
+            self.options = options
+
             self._process = subprocess.Popen(
                 cmd,
-                cwd = options["gameDirectory"],
+                cwd = self.options["gameDirectory"],
                 stdin = subprocess.PIPE,
                 stdout = subprocess.PIPE,
                 stderr = None,
@@ -163,7 +170,11 @@ class Launch_Frame(ttk.Frame):
 
             self.root.after(100, self.loop)
 
-        def loop(self):
+        def on_press_close(self,*args):
+            if self.root.state() != 'withdrawn':
+                self.root.state('withdrawn')
+
+        def loop(self,*args):
             poll = self._process.poll()
             if poll is not None:
                 #print(poll)
@@ -180,8 +191,19 @@ class Launch_Frame(ttk.Frame):
                     self.text['state'] = 'disabled'
                     self.root.after(10, self.loop)
         
-        def close(self):
+        def kill(self,*args):
+            self._process.kill()
+        
+        def terminate(self,*args):
+            self._process.terminate()
+
+        def open_log(self,*args):
+            if self.root.state() != 'normal':
+                self.root.state('normal')
+        
+        def close(self,*args):
             MAIN_LAUNCHER.launch.minecraft_instainces.remove(self)
+            MAIN_LAUNCHER.instainces.update()
             if self.root.state() == 'withdrawn': self.root.destroy()
 
 
@@ -192,6 +214,11 @@ class Launch_Frame(ttk.Frame):
         self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(5, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(4, weight=1)
 
         #self.minecraft_directory = ".\\dir"
         self.minecraft_instainces = []
@@ -211,9 +238,9 @@ class Launch_Frame(ttk.Frame):
         self.version.grid(row=3, column=2, sticky=tk.W)
 
         self.online = ttk.Label(self, text="")
-        self.online.grid(row=4, column=2, sticky=tk.W)
+        self.online.grid(row=3, column=3, sticky=tk.W)
 
-        ttk.Button(self, text="Launch", command=self.launch).grid(row=3, column=3, sticky=tk.W)
+        ttk.Button(self, text="Launch", command=self.launch).grid(row=4, column=2, columnspan=2, sticky=(tk.W, tk.E))
 
         for child in self.winfo_children(): 
             child.grid_configure(padx=5, pady=5)
@@ -272,7 +299,14 @@ class Launch_Frame(ttk.Frame):
 
         minecraft_command = minecraft_launcher_lib.command.get_minecraft_command(profile["version"], self.root.options.minecraftDirectory, options)
 
-        self.minecraft_instainces.append(self.Minecraft_Instaince(minecraft_command, options, self.root.options.logWindow))
+        instaince_options = {
+            "gameDirectory" : options["gameDirectory"],
+            "username" : options["username"],
+            "profile" : profile_name,
+            "version" : profile["version"],
+        }
+
+        self.minecraft_instainces.append(self.Minecraft_Instaince(minecraft_command, instaince_options, self.root.options.logWindow))
         if not self.root.options.keepMainWindow: self.root.on_press_close()
         
         #if self.root.options.logWindow:
@@ -292,11 +326,12 @@ class Launch_Frame(ttk.Frame):
 
     def crash(self,instance):
         self.root.root.state('normal')
-        messagebox.showerror(message='Oops! Minecraft Crashed!')
+        messagebox.showerror(message='Oops! Minecraft Crashed!', title="YTD MC Launcher")
 
         self.minecraft_instainces.remove(instance)
         
         if instance.root.state() == 'withdrawn': instance.root.destroy()
+        self.root.instainces.update()
 
         #self.root.root.after(5000,lambda: self.minecraft_instainces.remove(instance))
 
@@ -317,6 +352,11 @@ class Profiles_Frame(ttk.Frame):
         self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(7, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(3, weight=1)
 
         self.active = None
         self.profiles = []
@@ -497,6 +537,11 @@ class Users_Frame(ttk.Frame):
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(4, weight=1)
+
         ttk.Button(self, text="Login", command=self.login).grid(column=3, row=1, sticky=tk.W)
 
         self.backup_url = tk.StringVar()
@@ -624,6 +669,11 @@ class Versions_Frame(ttk.Frame):
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(4, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(4, weight=1)
+
         self.version = tk.StringVar()
         self.version_entry = ttk.Combobox(self, textvariable=self.version)#, width=15)
         self.version_entry.grid(column=2, row=1)
@@ -720,6 +770,11 @@ class Options_Frame(ttk.Frame):
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
 
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(6, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(5, weight=1)
+
         self._options = {}
         self.load()
 
@@ -797,7 +852,76 @@ class Options_Frame(ttk.Frame):
 
 
 class Instainces_Frame(ttk.Frame):
-    pass
+
+    def __init__(self, parent=None):
+        self.root = tk.Tk() if parent is None else parent
+        super().__init__(self.root, padding="3 3 12 12")
+
+        self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(3, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(4, weight=1)
+
+        self.instaince_list = ttk.Treeview(self, columns=('user','profile','version'), height=10)
+        self.instaince_list.grid(row=1, column=1, columnspan=3, sticky=(tk.W, tk.E))
+
+        ttk.Button(self, text="End Task", command=self.kill).grid(row=2, column=1, sticky=(tk.W, tk.E))
+        ttk.Button(self, text="Close", command=self.terminate).grid(row=2, column=2, sticky=(tk.W, tk.E))
+        ttk.Button(self, text="Log Window", command=self.log).grid(row=2, column=3, sticky=(tk.W, tk.E))
+        
+        self.instaince_list['columns'] = ('user','profile','version')
+
+        #self.list.grid(row=1, column=1, sticky=tk.W)
+        self.instaince_list.column('#0', width=85, anchor='w')
+        self.instaince_list.heading('#0', text='#')
+        self.instaince_list.column('user', width=125, anchor='w')
+        self.instaince_list.heading('user', text='User')
+        self.instaince_list.column('profile', width=125, anchor='w')
+        self.instaince_list.heading('profile', text='Profile')
+        self.instaince_list.column('version', width=175, anchor='w')
+        self.instaince_list.heading('version', text='Version')
+        
+        for child in self.winfo_children(): 
+            child.grid_configure(padx=5, pady=5)
+
+    def on_focus(self):
+        self.update()
+
+    def update(self):
+        self._clear()
+
+        for i in self.root.launch.minecraft_instainces:
+            self.instaince_list.insert('', 'end',
+            text=i.start_time.strftime("%b")[0]+i.start_time.strftime(" %d-%H:%M"),
+            values=(
+                    i.options['username'],
+                    i.options['profile'],
+                    i.options['version'],
+                )
+            )
+    
+    def _clear(self):
+        for i in self.instaince_list.get_children():
+            self.instaince_list.delete(i)
+    
+    def get_selected(self):
+        sel = self.instaince_list.selection()
+        for i in self.root.launch.minecraft_instainces:
+            if i.start_time.strftime("%b")[0]+i.start_time.strftime(" %d-%H:%M") == self.instaince_list.item(sel[0])['text']:
+                return i
+    
+    def kill(self, *args):
+        self.get_selected().kill()
+    
+    def terminate(self, *args):
+        self.get_selected().terminate()
+    
+    def log(self, *args):
+        self.get_selected().open_log()
 
 
 def getHttp(url,j=False,t=False):
