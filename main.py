@@ -18,6 +18,8 @@ from tkinter import messagebox
 from tkinter import filedialog
 from tkinter import font as tkFont
 
+import mojangapi
+
 try: import win32clipboard
 except: CLIPBOARD = False
 else: CLIPBOARD = "win32clipboard"
@@ -55,6 +57,10 @@ class Launcher(ttk.Notebook):
         self.add(self.profiles, text='Profiles')
         self.tab_list.append(self.profiles)
 
+        self.skins = Skins_Frame(self)
+        self.add(self.skins, text='Skins')
+        self.tab_list.append(self.skins)
+
         self.mods = Mods_Frame(self)
         self.add(self.mods, text='Mods')
         self.tab_list.append(self.mods)
@@ -74,6 +80,10 @@ class Launcher(ttk.Notebook):
         self.instainces = Instainces_Frame(self)
         self.add(self.instainces, text='Instainces')
         self.tab_list.append(self.instainces)
+
+        self.about = About_Frame(self)
+        self.add(self.about, text='About')
+        self.tab_list.append(self.about)
 
         #self.launch.on_focus()
         self.bind("<<NotebookTabChanged>>", self.on_change)
@@ -462,11 +472,11 @@ class Profiles_Frame(ttk.Frame):
 
     def organize_profile_info(self):
         profile_info = {}
-        profile_info["name"] = self.profile_names.get()
-        profile_info["version"] = self.version.get()
-        if self.jvmArguments.get() != "": profile_info["jvmArguments"] = self.jvmArguments.get()
-        if self.gameDirectory.get() != "": profile_info["gameDirectory"] = self.gameDirectory.get()
-        if self.server.get() != "": profile_info["server"] = self.server.get()
+        profile_info["name"] = self.profile_names.get().strip()
+        profile_info["version"] = self.version.get().strip()
+        if self.jvmArguments.get().strip() != "": profile_info["jvmArguments"] = self.jvmArguments.get().strip()
+        if self.gameDirectory.get().strip() != "": profile_info["gameDirectory"] = self.gameDirectory.get().strip()
+        if self.server.get().strip() != "": profile_info["server"] = self.server.get().strip()
         return profile_info
 
     def add_profile(self,profile_info):
@@ -499,6 +509,30 @@ class Profiles_Frame(ttk.Frame):
         if profile_name in self.get_profile_names():
             self.active = profile_name
             self.save_profiles()
+
+
+class Skins_Frame(ttk.Frame):
+
+    def __init__(self, parent=None):
+        self.root = tk.Tk() if parent is None else parent
+        super().__init__(self.root, padding="3 3 12 12")
+
+        self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(5, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(4, weight=1)
+
+        ttk.Label(self, text="Skin Changer WIP").grid(row=1, column=3, sticky=tk.W)
+
+        for child in self.winfo_children(): 
+            child.grid_configure(padx=5, pady=5)
+    
+    def on_focus(self):
+        pass
 
 
 class Mods_Frame(ttk.Frame):
@@ -922,6 +956,41 @@ class Instainces_Frame(ttk.Frame):
     
     def log(self, *args):
         self.get_selected().open_log()
+
+
+class About_Frame(ttk.Frame):
+
+    def __init__(self, parent=None):
+        self.root = tk.Tk() if parent is None else parent
+        super().__init__(self.root, padding="3 3 12 12")
+
+        self.grid(column=0, row=0, sticky=(tk.N, tk.W, tk.E, tk.S))
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(5, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(3, weight=1)
+
+        ttk.Label(self, text="YTD Minecraft Launcher").grid(row=1, column=1, columnspan=2, sticky=tk.W)
+        ttk.Label(self, text="Created by Yeahbut").grid(row=2, column=1, columnspan=2, sticky=tk.W)
+
+        ttk.Label(self, text="Online Conection Status:").grid(row=3, column=1, sticky=tk.W)
+        self.online = ttk.Label(self, text="")
+        self.online.grid(row=3, column=2, sticky=tk.W)
+
+        ttk.Label(self, text="Quit Launcher:").grid(row=4, column=1, sticky=tk.W)
+        ttk.Button(self, text="Quit Launcher", command=self.quit).grid(column=2, row=4, sticky=tk.W)
+
+        for child in self.winfo_children(): 
+            child.grid_configure(padx=5, pady=5)
+    
+    def on_focus(self):
+        self.online["text"] = "Online" if have_internet() else "Offline"
+
+    def quit(self):
+        self.root.root.destroy()
 
 
 def getHttp(url,j=False,t=False):
