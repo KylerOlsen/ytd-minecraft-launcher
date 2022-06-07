@@ -704,20 +704,22 @@ class Versions_Frame(ttk.Frame):
         self.root.rowconfigure(0, weight=1)
 
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(4, weight=1)
+        self.grid_rowconfigure(5, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(4, weight=1)
 
+        ttk.Label(self, text="Install Versions").grid(row=1, column=1, columnspan=2, sticky=tk.W)
+
         self.version = tk.StringVar()
         self.version_entry = ttk.Combobox(self, textvariable=self.version)#, width=15)
-        self.version_entry.grid(column=2, row=1)
+        self.version_entry.grid(column=2, row=2)
 
         #ttk.Label(self, text="Version").grid(column=3, row=1, sticky=tk.W)
         #version_frame = ttk.Frame(self)
         #version_frame.grid(column=3, row=1)
         self.version_type = tk.StringVar()
         self.version_type_entry = ttk.Combobox(self, textvariable=self.version_type, width=10)#, command=self.on_focus)
-        self.version_type_entry.grid(column=3, row=1)
+        self.version_type_entry.grid(column=3, row=2)
         self.version_type_entry["values"] = ['release','snapshot','old_beta','old_alpha','fabric']
         self.version_type_entry.current(0)
         self.version_type_entry.bind('<<ComboboxSelected>>', self.on_focus) 
@@ -727,20 +729,21 @@ class Versions_Frame(ttk.Frame):
         #ttk.Radiobutton(version_frame, text='R', variable=self.version_type, value='release', command=self.on_focus).grid(column=4, row=1)
         #self.version_type.set('release')
         
-        ttk.Button(self, text="Install", command=self.install).grid(row=2, column=3, sticky=tk.W)
+        ttk.Button(self, text="Install", command=self.install).grid(row=3, column=3, sticky=tk.W)
 
         self.progress = ttk.Progressbar(self, length=200, mode='determinate')
-        self.progress.grid(row=3, column=2, columnspan=2, sticky=tk.W)
+        self.progress.grid(row=4, column=2, columnspan=2, sticky=tk.W)
         self.max_progress = 100
 
         self.progress_text = ttk.Label(self, text="")
-        self.progress_text.grid(row=2, column=2, sticky=tk.W)
+        self.progress_text.grid(row=3, column=2, sticky=tk.W)
 
         for child in self.winfo_children(): 
             child.grid_configure(padx=5, pady=5)
 
     def on_focus(self,*args):
-        self.load_list_avalible_versions(self.version_entry,release_type=self.version_type.get())
+        if have_internet():
+            self.load_list_avalible_versions(self.version_entry,release_type=self.version_type.get())
     
     def set_text(self,s):
         self.progress_text["text"] = s
