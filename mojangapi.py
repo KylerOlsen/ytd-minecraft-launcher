@@ -34,14 +34,14 @@ def uuid_to_profile_texture(uuid):
 
 def uuid_to_skin(uuid):
     data = uuid_to_profile_texture(uuid)
-    if data is not None:
+    if data is not None and 'SKIN' in data['textures']:
         url = data["textures"]["SKIN"]["url"]
         request = urllib.request.Request(url)
         return urllib.request.urlopen(request).read()
 
 def uuid_to_cape(uuid):
     data = uuid_to_profile_texture(uuid)
-    if data is not None:
+    if data is not None and 'CAPE' in data['textures']:
         url = data["textures"]["CAPE"]["url"]
         request = urllib.request.Request(url)
         return urllib.request.urlopen(request).read()

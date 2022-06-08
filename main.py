@@ -11,12 +11,16 @@ import http.client
 from threading  import Thread
 from queue import Queue, Empty
 import datetime
+import io
 
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from tkinter import filedialog
 from tkinter import font as tkFont
+from tkinter import PhotoImage
+
+#from PIL import ImageTk, Image
 
 import mojangapi
 
@@ -522,17 +526,104 @@ class Skins_Frame(ttk.Frame):
         self.root.rowconfigure(0, weight=1)
 
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(5, weight=1)
+        self.grid_rowconfigure(7, weight=1)
         self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(4, weight=1)
+        self.grid_columnconfigure(5, weight=1)
 
-        ttk.Label(self, text="Skin Changer WIP").grid(row=1, column=3, sticky=tk.W)
+        ttk.Label(self, text="Skin Changer").grid(row=1, column=1, columnspan=4, sticky=(tk.W, tk.E))
+
+        ttk.Label(self, text="Username").grid(row=2, column=4, sticky=tk.W)
+        self.username = tk.StringVar()
+        self.username_entry = ttk.Combobox(self, textvariable=self.username)
+        self.username_entry.grid(row=2, column=1, columnspan=3, sticky=(tk.W, tk.E))
+
+        ttk.Button(self, text="Download", command=self.download_skin).grid(row=3, column=1, sticky=(tk.W))
+        ttk.Button(self, text="Save", command=self.save_skin).grid(row=3, column=2, sticky=(tk.W))
+        ttk.Button(self, text="Upload", command=self.upload_skin).grid(row=3, column=3, sticky=(tk.W))
+        ttk.Button(self, text="Open", command=self.select_skin).grid(row=3, column=4, sticky=(tk.W))
+
+        self.skin = None
+        self.skin_image = None
+        ttk.Label(self, text="Skin:").grid(row=4, column=1, sticky=tk.W)
+        self.skin_label = ttk.Label(self)
+        self.skin_label.grid(row=4, column=2, columnspan=3, sticky=tk.W)
+
+        ttk.Button(self, text="Download", command=self.download_cape).grid(row=5, column=1, sticky=(tk.W))
+        ttk.Button(self, text="Save", command=self.save_cape).grid(row=5, column=2, sticky=(tk.W))
+
+        self.cape = None
+        self.cape_image = None
+        ttk.Label(self, text="Cape:").grid(row=6, column=1, sticky=tk.W)
+        self.cape_label = ttk.Label(self)
+        self.cape_label.grid(row=6, column=2, sticky=tk.W)
 
         for child in self.winfo_children(): 
             child.grid_configure(padx=5, pady=5)
     
     def on_focus(self):
-        pass
+        self.root.users.load_list_users(self.username_entry)
+        if have_internet():
+            self.download_skin()
+            self.download_cape()
+    
+    def display_skin(self):
+        if self.skin is not None:
+            self.skin_image = PhotoImage(data=self.skin, format='png')
+            #self.skin_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.skin)))
+            self.skin_label['image'] = self.skin_image
+        else: self.skin_label['image'] = ""
+
+    def download_skin(self):
+        if have_internet():
+            try: user = mojangapi.username_to_uuid(self.username.get())
+            except: pass
+            else: data = mojangapi.uuid_to_skin(user['id'])
+            self.skin = data
+        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        self.display_skin()
+
+    def save_skin(self):
+        if self.skin is not None:
+            with filedialog.asksaveasfile(initialfile = f'{self.username.get()}_skin.png', mode='wb', defaultextension=".png",filetypes=[("All Files","*.*"),("Images","*.png")]) as file:
+                if file is None: return
+                file.write(self.skin)
+
+    def upload_skin(self):
+        if have_internet():
+            username = self.username.get()
+            user = self.root.users.get_user(username)
+            if user is None:
+                messagebox.showerror(message=f"The user '{username}' is not logged in!", title="YTD MC Launcher")
+                return
+        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+
+    def select_skin(self):
+        with filedialog.askopenfile(mode='rb', defaultextension=".png",filetypes=[("All Files","*.*"),("Images","*.png")]) as file:
+            if file is None: return
+            self.skin = file.read()
+        self.display_skin()
+    
+    def display_cape(self):
+        if self.cape is not None:
+            self.cape_image = PhotoImage(data=self.cape, format='png')
+            #self.cape_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.cape)))
+            self.cape_label['image'] = self.cape_image
+        else: self.cape_label['image'] = ""
+
+    def download_cape(self):
+        if have_internet():
+            try: user = mojangapi.username_to_uuid(self.username.get())
+            except: pass
+            else: data = mojangapi.uuid_to_cape(user['id'])
+            self.cape = data
+        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        self.display_cape()
+
+    def save_cape(self):
+        if self.cape is not None:
+            with filedialog.asksaveasfile(initialfile = f'{self.username.get()}_cape.png', mode='wb', defaultextension=".png",filetypes=[("All Files","*.*"),("Images","*.png")]) as file:
+                if file is None: return
+                file.write(self.cape)
 
 
 class Mods_Frame(ttk.Frame):
@@ -607,6 +698,9 @@ class Users_Frame(ttk.Frame):
             elif len(users) > select: entry.current(select)
 
     def login(self,*args):
+        if not have_internet():
+            messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+            return
         secret_id = self.client_id
         if minecraft_launcher_lib.microsoft_account.url_contains_auth_code(self.backup_url.get()):
             try:
@@ -759,6 +853,9 @@ class Versions_Frame(ttk.Frame):
         self.max_progress = val
 
     def install(self,*args):
+        if not have_internet():
+            messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+            return
         callback = {
             "setStatus": self.set_text,
             "setProgress": self.set_progress,
@@ -815,6 +912,8 @@ class Options_Frame(ttk.Frame):
         self._options = {}
         self.load()
 
+        ttk.Label(self, text="Launcher Options").grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E))
+        
         self._minecraftDirectory = tk.StringVar()
         ttk.Entry(self, textvariable=self._minecraftDirectory).grid(column=2, row=2, sticky=(tk.W, tk.E))
         minecraftdir = ttk.Label(self, text="Minecraft Directory")
@@ -976,8 +1075,8 @@ class About_Frame(ttk.Frame):
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(3, weight=1)
 
-        ttk.Label(self, text="YTD Minecraft Launcher").grid(row=1, column=1, columnspan=2, sticky=tk.W)
-        ttk.Label(self, text="Created by Yeahbut").grid(row=2, column=1, columnspan=2, sticky=tk.W)
+        ttk.Label(self, text="YTD Minecraft Launcher").grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E))
+        ttk.Label(self, text="Created by Yeahbut").grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E))
 
         ttk.Label(self, text="Online Conection Status:").grid(row=3, column=1, sticky=tk.W)
         self.online = ttk.Label(self, text="")
@@ -1009,12 +1108,18 @@ def enqueue_output(out, queue):
     except ValueError: queue.put(None)
     finally: out.close()
 
+_have_internet_state = None
+
 def have_internet():
+    global _have_internet_state
     conn = http.client.HTTPSConnection("8.8.8.8", timeout=Launcher.main.options.onlineTimeout/1000)
     try:
         conn.request("HEAD", "/")
+        _have_internet_state = True
         return True
     except Exception:
+        if _have_internet_state is None or _have_internet_state: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        _have_internet_state = False
         return False
     finally:
         conn.close()
