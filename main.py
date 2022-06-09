@@ -608,10 +608,7 @@ class Skins_Frame(ttk.Frame):
                 if variant not in mojangapi.SKIN_VARIANTS:
                     messagebox.showerror(message=f"The skin variant '{variant}' is inavlid!", title="YTD MC Launcher")
                     return
-                import urllib.error
-                try: mojangapi.upload_skin(user['access_token'], variant, self.skin)
-                except urllib.error.HTTPError as e:
-                    messagebox.showerror(message=f"Upload Failed!\nHTTP Error {e.code}: {e.reason}", title="YTD MC Launcher")
+                mojangapi.upload_skin(user['access_token'], variant, self.skin)
             else:
                 messagebox.showerror(message=f"The user '{username}' is not logged in!", title="YTD MC Launcher")
         else: no_internet_warning()
