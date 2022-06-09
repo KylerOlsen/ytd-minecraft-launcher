@@ -20,9 +20,10 @@ from tkinter import filedialog
 from tkinter import font as tkFont
 from tkinter import PhotoImage
 
-#from PIL import ImageTk, Image
-
 import mojangapi
+
+try: from PIL import ImageTk, Image
+except: Image = None
 
 try: import win32clipboard
 except: CLIPBOARD = False
@@ -543,15 +544,20 @@ class Skins_Frame(ttk.Frame):
         ttk.Button(self, text="Open", command=self.select_skin).grid(row=3, column=4, sticky=(tk.W))
 
         self.skin = None
+        self.skin_variant = tk.StringVar()
         self.skin_image = None
         ttk.Label(self, text="Skin:").grid(row=4, column=1, sticky=tk.W)
+        skin_var_entry = ttk.Combobox(self, textvariable=self.skin_variant, width=6)
+        skin_var_entry.grid(row=4, column=2, sticky=(tk.W))
+        skin_var_entry['values'] = mojangapi.SKIN_VARIANTS
         self.skin_label = ttk.Label(self)
-        self.skin_label.grid(row=4, column=2, columnspan=3, sticky=tk.W)
+        self.skin_label.grid(row=4, column=3, columnspan=2, sticky=tk.W)
 
         ttk.Button(self, text="Download", command=self.download_cape).grid(row=5, column=1, sticky=(tk.W))
         ttk.Button(self, text="Save", command=self.save_cape).grid(row=5, column=2, sticky=(tk.W))
 
         self.cape = None
+        self.cape_alias = tk.StringVar()
         self.cape_image = None
         ttk.Label(self, text="Cape:").grid(row=6, column=1, sticky=tk.W)
         self.cape_label = ttk.Label(self)
@@ -562,14 +568,17 @@ class Skins_Frame(ttk.Frame):
     
     def on_focus(self):
         self.root.users.load_list_users(self.username_entry)
+        self.after(0,self.update)
+    
+    def update(self):
         if have_internet():
             self.download_skin()
             self.download_cape()
     
     def display_skin(self):
         if self.skin is not None:
-            self.skin_image = PhotoImage(data=self.skin, format='png')
-            #self.skin_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.skin)))
+            if Image is None: self.skin_image = PhotoImage(data=self.skin, format='png')
+            else: self.skin_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.skin)))
             self.skin_label['image'] = self.skin_image
         else: self.skin_label['image'] = ""
 
@@ -579,7 +588,8 @@ class Skins_Frame(ttk.Frame):
             except: pass
             else: data = mojangapi.uuid_to_skin(user['id'])
             self.skin = data
-        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+            #print(mojangapi.uuid_to_profile_texture(user['id']))
+        else: no_internet_warning()
         self.display_skin()
 
     def save_skin(self):
@@ -591,11 +601,20 @@ class Skins_Frame(ttk.Frame):
     def upload_skin(self):
         if have_internet():
             username = self.username.get()
-            user = self.root.users.get_user(username)
-            if user is None:
+            if self.root.users.has_user(username):
+                self.root.users.auth_user(username)
+                user = self.root.users.get_user(username)
+                variant = self.skin_variant.get()
+                if variant not in mojangapi.SKIN_VARIANTS:
+                    messagebox.showerror(message=f"The skin variant '{variant}' is inavlid!", title="YTD MC Launcher")
+                    return
+                import urllib.error
+                try: mojangapi.upload_skin(user['access_token'], variant, self.skin)
+                except urllib.error.HTTPError as e:
+                    messagebox.showerror(message=f"Upload Failed!\nHTTP Error {e.code}: {e.reason}", title="YTD MC Launcher")
+            else:
                 messagebox.showerror(message=f"The user '{username}' is not logged in!", title="YTD MC Launcher")
-                return
-        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        else: no_internet_warning()
 
     def select_skin(self):
         with filedialog.askopenfile(mode='rb', defaultextension=".png",filetypes=[("All Files","*.*"),("Images","*.png")]) as file:
@@ -605,8 +624,8 @@ class Skins_Frame(ttk.Frame):
     
     def display_cape(self):
         if self.cape is not None:
-            self.cape_image = PhotoImage(data=self.cape, format='png')
-            #self.cape_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.cape)))
+            if Image is None: self.cape_image = PhotoImage(data=self.cape, format='png')
+            else: self.cape_image = ImageTk.PhotoImage(Image.open(io.BytesIO(self.cape)))
             self.cape_label['image'] = self.cape_image
         else: self.cape_label['image'] = ""
 
@@ -616,7 +635,7 @@ class Skins_Frame(ttk.Frame):
             except: pass
             else: data = mojangapi.uuid_to_cape(user['id'])
             self.cape = data
-        else: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        else: no_internet_warning()
         self.display_cape()
 
     def save_cape(self):
@@ -699,7 +718,7 @@ class Users_Frame(ttk.Frame):
 
     def login(self,*args):
         if not have_internet():
-            messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+            no_internet_warning()
             return
         secret_id = self.client_id
         if minecraft_launcher_lib.microsoft_account.url_contains_auth_code(self.backup_url.get()):
@@ -760,6 +779,12 @@ class Users_Frame(ttk.Frame):
                 if self.users[i]['name'] == user_info['name']:
                     self.users[i] = user_info
         self.save_users()
+
+    def has_user(self,username):
+        for i in self.users:
+            if i['name'] == username:
+                return True
+        return False
 
     def get_user(self,username):
         for i in self.users:
@@ -854,7 +879,7 @@ class Versions_Frame(ttk.Frame):
 
     def install(self,*args):
         if not have_internet():
-            messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+            no_internet_warning()
             return
         callback = {
             "setStatus": self.set_text,
@@ -895,6 +920,15 @@ class Versions_Frame(ttk.Frame):
 
 
 class Options_Frame(ttk.Frame):
+
+    _default_options = {
+        "minecraftDirectory" : os.path.realpath(DEFAULT_DIR),
+        "logWindow" : True,
+        "keepMainWindow" : True,
+        "forceDemo" : True,
+        "onlineTimeout" : 5000,
+        "offlineWarning" : True,
+    }
     
     def __init__(self, parent=None):
         self.root = tk.Tk() if parent is None else parent
@@ -947,7 +981,7 @@ class Options_Frame(ttk.Frame):
     
     def save(self):
         #self._options = {}
-        if self._minecraftDirectory.get() == "": self._options["minecraftDirectory"] = os.path.realpath(DEFAULT_DIR)
+        if self._minecraftDirectory.get() == "": self._options["minecraftDirectory"] = self._default_options["minecraftDirectory"]
         else: self._options["minecraftDirectory"] = os.path.realpath(self._minecraftDirectory.get())
         self._options['logWindow'] = self._logWindow.get()
         self._options['keepMainWindow'] = self._keepMainWindow.get()
@@ -960,14 +994,11 @@ class Options_Frame(ttk.Frame):
     def load(self):
         try: data = json.load(open("ytd_launcher_options.json"))
         except:
-            self._options = {
-                "minecraftDirectory" : os.path.realpath(DEFAULT_DIR),
-                "logWindow" : True,
-                "keepMainWindow" : True,
-                "forceDemo" : True,
-                "onlineTimeout" : 5000,
-            }
+            self._options = self._default_options
         else: self._options = data
+        for i in self._default_options:
+            if i not in self._options:
+                self._options[i] = self._default_options[i]
     
     def get_directory(self,*args):
         directorystart = self.minecraftDirectory
@@ -985,6 +1016,8 @@ class Options_Frame(ttk.Frame):
     def forceDemo(self): return self._options["forceDemo"]
     @property
     def onlineTimeout(self): return self._options["onlineTimeout"]
+    @property
+    def offlineWarning(self): return self._options["offlineWarning"]
 
 
 class Instainces_Frame(ttk.Frame):
@@ -1108,17 +1141,24 @@ def enqueue_output(out, queue):
     except ValueError: queue.put(None)
     finally: out.close()
 
+def no_internet_warning():
+    if MAIN_LAUNCHER.options.offlineWarning:
+        messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+
 _have_internet_state = None
 
-def have_internet():
+def have_internet():#sure=False):
     global _have_internet_state
-    conn = http.client.HTTPSConnection("8.8.8.8", timeout=Launcher.main.options.onlineTimeout/1000)
+    #if not sure and MAIN_LAUNCHER.options.onlineTimeout > 1000 and _have_internet_state is not None:
+    #    MAIN_LAUNCHER.after(0, lambda: have_internet(True))
+    #    return _have_internet_state
+    conn = http.client.HTTPSConnection("8.8.8.8", timeout=MAIN_LAUNCHER.options.onlineTimeout/1000)
     try:
         conn.request("HEAD", "/")
         _have_internet_state = True
         return True
     except Exception:
-        if _have_internet_state is None or _have_internet_state: messagebox.showwarning(message=f"No internet connection!", title="YTD MC Launcher")
+        if _have_internet_state is None or _have_internet_state: no_internet_warning()
         _have_internet_state = False
         return False
     finally:

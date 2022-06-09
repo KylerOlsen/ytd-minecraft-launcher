@@ -4,6 +4,79 @@
 import urllib.request
 import json
 import base64
+import mimetypes
+import io
+import uuid
+
+SKIN_VARIANTS = ('Classic','Slim')
+
+
+class MultiPartForm(object):
+	"""Accumulate the data to be used when posting a form."""
+
+	def __init__(self):
+		self.form_fields = []
+		self.files = []
+		#self.boundary = mimetypes.choose_boundary()
+		self.boundary = uuid.uuid4().hex
+		return
+
+	def get_content_type(self):
+		return 'multipart/form-data; boundary=%s' % self.boundary
+
+	def add_field(self, name, value):
+		"""Add a simple field to the form data."""
+		self.form_fields.append((name, value))
+		return
+
+	def add_file(self, fieldname, filename, fileHandle, mimetype=None):
+		"""Add a file to be uploaded."""
+		body = fileHandle.read()
+		if mimetype is None:
+			mimetype = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+		self.files.append((fieldname, filename, mimetype, body))
+		return
+
+	def get_binary(self):
+		"""Return a binary buffer containing the form data, including attached files."""
+		part_boundary = '--' + self.boundary
+
+		binary = io.BytesIO()
+		needsCLRF = False
+		# Add the form fields
+		for name, value in self.form_fields:
+			if needsCLRF:
+				binary.write(b'\r\n')
+			needsCLRF = True
+
+			block = [part_boundary,
+			  'Content-Disposition: form-data; name="%s"' % name,
+			  '',
+			  value
+			]
+			binary.write(('\r\n'.join(block)).encode('utf-8'))
+
+		# Add the files to upload
+		for field_name, filename, content_type, body in self.files:
+			if needsCLRF:
+				binary.write(b'\r\n')
+			needsCLRF = True
+
+			block = [part_boundary,
+			  str('Content-Disposition: file; name="%s"; filename="%s"' % \
+			  (field_name, filename)),
+			  'Content-Type: %s' % content_type,
+			  ''
+			  ]
+			binary.write(('\r\n'.join(block)).encode('utf-8'))
+			binary.write(b'\r\n')
+			binary.write(body)
+
+
+		# add closing boundary marker,
+		binary.write(('\r\n--' + self.boundary + '--\r\n').encode('utf-8'))
+		return binary
+
 
 def username_to_uuid(name):
     url = f"https://api.mojang.com/users/profiles/minecraft/{name}"
@@ -97,7 +170,7 @@ def _change_name(access_token, name):
 def change_skin(access_token, variant, skin_url):
     url = "https://api.minecraftservices.com/minecraft/profile/skins"
     payload = {
-        "variant": variant,
+        "variant": variant.lower(),
         "url": skin_url
     }
     request = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST')
@@ -105,10 +178,18 @@ def change_skin(access_token, variant, skin_url):
     request.add_header("Content-Type", "application/json")
     return urllib.request.urlopen(request).read().decode('utf8')
 
-def __upload_skin(access_token, variant, image): # WIP -----------------------------------------------
+def upload_skin(access_token, variant, image, image_name="skin.png"):
+    form = MultiPartForm()
+    form.add_field("variant", variant.lower())
+    form.add_file('file', image_name, io.BytesIO(image))
+    content_type = form.get_content_type()
+    data = form.get_binary()
+    data.seek(0)
+
     url = "https://api.minecraftservices.com/minecraft/profile/skins"
-    request = urllib.request.Request(url, method='POST')
+    request = urllib.request.Request(url, data=data.read(), method='POST')
     request.add_header("Authorization",f"Bearer {access_token}")
+    request.add_header("Content-Type", content_type)
     return urllib.request.urlopen(request).read().decode('utf8')
 
 def reset_skin(access_token, uuid):
