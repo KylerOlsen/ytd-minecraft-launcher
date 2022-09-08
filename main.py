@@ -32,6 +32,7 @@ else: CLIPBOARD = "win32clipboard"
 
 DEFAULT_DIR = minecraft_launcher_lib.utils.get_minecraft_directory()#"./dir"
 MAIN_LAUNCHER = None
+LAUNCHER_VERSION = 'a.0.3'
 
 
 class Launcher(ttk.Notebook):
@@ -51,6 +52,7 @@ class Launcher(ttk.Notebook):
         self.root.rowconfigure(0, weight=1)
         
         self.root.title("YTD Minecraft Launcher")
+        self.root.iconbitmap("purplestoneicon.ico")
 
         self.tab_list = []
 
@@ -1101,19 +1103,20 @@ class About_Frame(ttk.Frame):
         self.root.rowconfigure(0, weight=1)
 
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(5, weight=1)
+        self.grid_rowconfigure(6, weight=1)
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(3, weight=1)
 
         ttk.Label(self, text="YTD Minecraft Launcher").grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E))
         ttk.Label(self, text="Created by Yeahbut").grid(row=2, column=1, columnspan=2, sticky=(tk.W, tk.E))
+        ttk.Label(self, text=f"Launcher Version: {LAUNCHER_VERSION}").grid(row=3, column=1, columnspan=2, sticky=(tk.W, tk.E))
 
-        ttk.Label(self, text="Online Conection Status:").grid(row=3, column=1, sticky=tk.W)
+        ttk.Label(self, text="Online Conection Status:").grid(row=4, column=1, sticky=tk.W)
         self.online = ttk.Label(self, text="")
-        self.online.grid(row=3, column=2, sticky=tk.W)
+        self.online.grid(row=4, column=2, sticky=tk.W)
 
-        ttk.Label(self, text="Quit Launcher:").grid(row=4, column=1, sticky=tk.W)
-        ttk.Button(self, text="Quit Launcher", command=self.quit).grid(column=2, row=4, sticky=tk.W)
+        ttk.Label(self, text="Quit Launcher:").grid(row=5, column=1, sticky=tk.W)
+        ttk.Button(self, text="Quit Launcher", command=self.quit).grid(column=2, row=5, sticky=tk.W)
 
         for child in self.winfo_children(): 
             child.grid_configure(padx=5, pady=5)
